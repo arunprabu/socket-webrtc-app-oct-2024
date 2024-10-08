@@ -44,19 +44,29 @@
   <script>
     const messagesList = document.getElementById("messages");
     const chatMessageInput = document.getElementById("chatMessage");
+    const typingIndicator = document.getElementById("typing");
+
     console.log(socket);
 
-    socket.on("message_from_server", (msg) => {
+    // listener
+    socket.on("broadcast_chat_message", (msg) => {
       console.log(msg);
       const listItem = document.createElement("li");
       listItem.textContent = msg;
       messagesList.append(listItem);
     });
+
+    // listener on broadcast_typing_status
+    socket.on("broadcast_typing_status", (msg) => {
+      console.log(msg);
+      typingIndicator.textContent = msg;
+    })
     
     // whenever the user types the function will be called. 
     function handleInputChange(event) {
       // console.log(event.target.value);
       // we have to emit an event here -- to display 'user is typing'
+      socket.emit("typing", "Someone is typing...")
     }
 
     function handleSendChat(event) {
