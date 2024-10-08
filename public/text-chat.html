@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Chat using Socket.io</title>
+  <style>
+    ul>li {
+      list-style: none;
+      padding: 10px;
+      background-color: #f3f3f3;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    textarea {
+      padding: 10px;
+      width: 50%;
+    }
+    #typing {
+      font-style: italic;
+      color: grey;
+    }
+  </style>
+  <!-- The following lines are must -- otherwise front end will not notify the backend-->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    // Step 2 
+    const socket = io();
+  </script>
+</head>
+<body>
+  <h1>Start Chatting...</h1>
+
+  <ul id="messages">
+  </ul>
+
+  <p id="typing"></p><!-- Typing Indicator-->
+  <form id="chatForm" onsubmit="handleSendChat(event)">
+    <textarea id="chatMessage" rows="5" oninput="handleInputChange(event)"></textarea>
+    <button type="submit">Send</button>
+  </form>
+  
+
+  <script>
+    const messagesList = document.getElementById("messages");
+    const chatMessageInput = document.getElementById("chatMessage");
+    console.log(socket);
+
+    socket.on("message_from_server", (msg) => {
+      console.log(msg);
+      const listItem = document.createElement("li");
+      listItem.textContent = msg;
+      messagesList.append(listItem);
+    });
+    
+    // whenever the user types the function will be called. 
+    function handleInputChange(event) {
+      // console.log(event.target.value);
+      // we have to emit an event here -- to display 'user is typing'
+    }
+
+    function handleSendChat(event) {
+      event.preventDefault();
+      console.log(chatMessageInput.value);
+      // read the textarea content. 
+
+      // sending this message to all clients
+      socket.emit("chat_message", chatMessageInput.value);
+      chatMessageInput.value = "";
+    }
+  </script>
+
+</body>
+</html>
