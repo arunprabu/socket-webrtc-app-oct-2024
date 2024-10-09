@@ -18,14 +18,15 @@ app.get("/video-chat", (req, res) => {
   res.sendFile(__dirname + "/public/video-chat.html");
 });
 
-// To establish socket io connection -- front needs socket.io js script-- Refer text-chat.html
-// Handle connection events
-// Step 1: (Refer text-chat.html for step)
 io.on("connection", (socket) => {
   console.log("a user connected");
 
-  // listening to all custom events emitted By front end 
-  socket.on("chat_message",  (message) => {
+  // NOTE: The following logic implemented for text chat ONLY. after line number 43 video chat logic begins
+  // To establish socket io connection -- front needs socket.io js script-- Refer text-chat.html
+  // Handle connection events
+  // Step 1: (Refer text-chat.html for step)
+  // listening to all custom events emitted By front end
+  socket.on("chat_message", (message) => {
     console.log(message); // receiving the one user's chat message
 
     // broadcasting to all clients (users)
@@ -36,13 +37,35 @@ io.on("connection", (socket) => {
     console.log(msg);
     // broadcasting message to all clients (users)
     io.emit("broadcast_typing_status", msg);
-  })
+  });
+  /* TEXT CHAT LOGIC ENDED */
 
-  // handle disconnection
+  /* NOTE: THE FOLLOWING ARE FOR VIDEO CHAT */
+  // Handle 'offer' event
+  socket.on("offer", (offer) => {
+    // Broadcast the offer to all other connected clients
+    socket.broadcast.emit("offer", offer);
+  });
+
+  // Handle 'answer' event
+  socket.on("answer", (answer) => {
+    // Broadcast the answer to all other connected clients
+    socket.broadcast.emit("answer", answer);
+  });
+
+  // Handle 'ice-candidate' event
+  socket.on("ice-candidate", (candidate) => {
+    // Broadcast the ICE candidate to all other connected clients
+    socket.broadcast.emit("ice-candidate", candidate);
+  });
+
+  // handle disconnection - used for both
   socket.on("disconnect", () => {
-    console.log('User disconnected');
+    console.log("User disconnected");
   });
 });
+
+
 
 server.listen(3002, () => {
   console.log("Server is running on localhost:3002. ");

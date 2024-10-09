@@ -1,11 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video chat using WebRTC</title>
-</head>
-<body>
-  <h1>Start Video Chat...</h1>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video chat using WebRTC</title>
+    <style>
+      /* Basic styling for video elements */
+      video {
+        width: 300px;
+        height: 225px;
+        margin: 10px;
+        background: #2c3e50;
+      }
+      /* Styling for the controls div */
+      #controls {
+        margin-top: 20px;
+      }
+    </style>
+    <!-- Include Socket.IO client library -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h1>Video Chat using WebRTC</h1>
+
+    <!-- Video element for local video stream -->
+    <video id="localVideo" autoplay muted></video>
+    <!-- Video element for remote video stream -->
+    <video id="remoteVideo" autoplay></video>
+
+    <!-- Control buttons for starting the chat and initiating a call -->
+    <div id="controls">
+      <button id="startButton">Start Chat [click this first in both windows]</button> 
+      <button id="callButton" disabled>Call [then, click this from window2]</button>
+    </div>
+
+    <script>
+      // Initialize Socket.IO connection
+      const socket = io();
+
+      // Get references to DOM elements
+      const localVideo = document.getElementById("localVideo");
+      const remoteVideo = document.getElementById("remoteVideo");
+      const startButton = document.getElementById("startButton");
+      const callButton = document.getElementById("callButton");
+
+      // Variables to store media stream and peer connection
+      let localStream;
+      let peerConnection;
+
+      // Configuration for ICE servers (using Google's public STUN server)
+      const configuration = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      };
+
+      // Event listeners for buttons
+      startButton.onclick = start;
+      callButton.onclick = makeCall;
+
+      // Function to start the video chat
+      async function start() {
+        try {
+          // Get local media stream (video and audio)
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          localVideo.srcObject = localStream;
+          startButton.disabled = true;
+          callButton.disabled = false;
+        } catch (e) {
+          console.error("Error accessing media devices:", e);
+        }
+      }
+
+      // Function to create and set up the RTCPeerConnection
+      function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(configuration);
+
+        // Add local tracks to the peer connection
+        localStream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, localStream);
+        });
+
+        // Handle incoming remote tracks
+        peerConnection.ontrack = (event) => {
+          remoteVideo.srcObject = event.streams[0];
+        };
+
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit("ice-candidate", event.candidate);
+          }
+        };
+
+        console.log("Peer connection created");
+      }
+
+      // Function to initiate a call
+      async function makeCall() {
+        createPeerConnection();
+        try {
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          socket.emit("offer", offer);
+          console.log("Offer created and sent");
+        } catch (e) {
+          console.error("Error creating offer:", e);
+        }
+      }
+
+      // Function to handle incoming offers
+      async function handleOffer(offer) {
+        if (!peerConnection) {
+          createPeerConnection();
+        }
+        try {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          socket.emit("answer", answer);
+          console.log("Offer received and answer sent");
+        } catch (e) {
+          console.error("Error handling offer:", e);
+        }
+      }
+
+      // Function to handle incoming answers
+      async function handleAnswer(answer) {
+        try {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          console.log("Answer received and set");
+        } catch (e) {
+          console.error("Error handling answer:", e);
+        }
+      }
+
+      // Function to handle incoming ICE candidates
+      async function handleNewICECandidateMsg(candidate) {
+        try {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log("New ICE candidate added");
+        } catch (e) {
+          console.error("Error adding ICE candidate:", e);
+        }
+      }
+
+      // Set up event listeners for WebRTC signaling
+      socket.on("offer", handleOffer);
+      socket.on("answer", handleAnswer);
+      socket.on("ice-candidate", handleNewICECandidateMsg);
+    </script>
+  </body>
 </html>
